@@ -109,6 +109,28 @@ const checkApiKey = () => {
   }
 };
 
+/**
+ * Retry Helper with Exponential Backoff
+ * Handles 429 (Too Many Requests) and 503 (Service Unavailable)
+ * 
+ * Update: Increased default retries to 5 (approx 62s total wait) to handle 
+ * the 1-minute quota reset window of the free tier.
+ */
+const retryOperation = async <T>(operation: () => Promise<T>, retries = 5, delay = 2000): Promise<T> => {
+  try {
+    return await operation();
+  } catch (error: any) {
+    const msg = error.message || error.toString();
+    // Only retry on rate limits or temporary server errors
+    if (retries > 0 && (msg.includes('429') || msg.includes('503'))) {
+      console.warn(`API Limit hit (${msg}). Retrying in ${delay/1000}s... (Attempts left: ${retries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return retryOperation(operation, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+};
+
 // ============================================================================
 // Service Exports
 // ============================================================================
@@ -137,7 +159,8 @@ export const searchPoems = async (filters: SearchFilters, excludeTitles: string[
       Return the result as a JSON array of poem objects.
     `;
 
-    const response = await ai.models.generateContent({
+    // Wrap the API call in retry logic
+    const response = await retryOperation(() => ai.models.generateContent({
       model: BASIC_MODEL,
       contents: prompt,
       config: {
@@ -147,7 +170,7 @@ export const searchPoems = async (filters: SearchFilters, excludeTitles: string[
           items: POEM_SCHEMA
         }
       }
-    });
+    }));
 
     if (response.text) {
       const parsed = JSON.parse(response.text);
@@ -181,7 +204,7 @@ export const generatePaintingFromPoem = async (poemContent: string, modelId: str
 
     // STRICT FORMATTING: Image models can be sensitive to content structure.
     // Use object structure { parts: [{ text: ... }] } instead of simple string.
-    const response = await ai.models.generateContent({
+    const response = await retryOperation(() => ai.models.generateContent({
       model: IMAGE_MODEL,
       contents: {
         parts: [{ text: prompt }]
@@ -191,7 +214,7 @@ export const generatePaintingFromPoem = async (poemContent: string, modelId: str
           aspectRatio: "1:1", // Square for traditional album leaf style
         }
       }
-    });
+    }));
 
     // Extract image from response parts
     if (response.candidates?.[0]?.content?.parts) {
@@ -231,14 +254,14 @@ export const generatePoemFromPainting = async (base64Image: string, modelId: str
       text: `Role: Chinese Poet. Task: Write a classical Chinese poem describing this image. ${styleInstruction}. Return the result in JSON format.`
     };
 
-    const response = await ai.models.generateContent({
+    const response = await retryOperation(() => ai.models.generateContent({
       model: CREATIVE_MODEL,
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: "application/json",
         responseSchema: POEM_SCHEMA
       }
-    });
+    }));
 
     if (response.text) {
       return JSON.parse(response.text) as Poem;
@@ -260,14 +283,14 @@ export const translatePoem = async (poem: string, modelId: string): Promise<{ mo
     const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['trans-v1'];
     const prompt = `Translate the following classical Chinese text to modern Chinese and provide an analysis. Text: "${poem}". Requirement: ${styleInstruction}. Return JSON.`;
 
-    const response = await ai.models.generateContent({
+    const response = await retryOperation(() => ai.models.generateContent({
       model: CREATIVE_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: TRANSLATION_SCHEMA
       }
-    });
+    }));
 
     if (response.text) {
       return JSON.parse(response.text);
@@ -289,14 +312,14 @@ export const generateAncientPoemFromModern = async (modernText: string, modelId:
     const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['rewrite-v1'];
     const prompt = `Rewrite the following modern text into a classical Chinese poem. Modern text: "${modernText}". Requirement: ${styleInstruction}. Return JSON.`;
 
-    const response = await ai.models.generateContent({
+    const response = await retryOperation(() => ai.models.generateContent({
       model: CREATIVE_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: POEM_SCHEMA
       }
-    });
+    }));
 
     if (response.text) {
       return JSON.parse(response.text) as Poem;

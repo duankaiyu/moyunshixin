@@ -157,13 +157,26 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
         saveToHistory(activeMode, currentInput, output);
       }
     } catch (e: any) {
-      console.error("Workflow failed", e);
-      let msg = "生成失败，请检查 API 配置或网络连接";
-      if (e.message && e.message.includes("API_KEY_MISSING")) {
-        msg = "未检测到 API Key，请确保 .env 文件存在且配置正确";
-      } else if (e.message && (e.message.includes("403") || e.message.includes("400"))) {
-        msg = "请求被拒绝，请检查 API Key 权限或模型可用性";
+      console.error("Workflow failed details:", e);
+      
+      let msg = "生成遇到问题";
+      const errorText = e.message || e.toString() || "";
+
+      if (errorText.includes("API_KEY_MISSING")) {
+        msg = "未配置 API Key。请在项目根目录创建 .env 文件并添加 API_KEY=您的密钥";
+      } else if (errorText.includes("403")) {
+        msg = "API 权限被拒绝 (403)。请检查您的 API Key 是否有效或有权访问该模型。";
+      } else if (errorText.includes("404")) {
+        msg = "模型未找到 (404)。当前 API Key 可能不支持 gemini-3 系列预览模型。";
+      } else if (errorText.includes("429")) {
+        msg = "API 调用过于频繁 (429)。请休息约1分钟等待额度恢复。";
+      } else if (errorText.includes("503") || errorText.includes("500")) {
+        msg = "AI 服务暂时不可用，请稍后重试。";
+      } else {
+         // Show a snippet of the error for better debugging
+         msg = `生成失败: ${errorText.substring(0, 60)}...`;
       }
+      
       showNotification(msg);
     } finally {
       setLoading(false);

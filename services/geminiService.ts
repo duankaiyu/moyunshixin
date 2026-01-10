@@ -7,10 +7,16 @@ import { Poem, SearchFilters, WorkflowMode, ModelOption } from "../types";
 
 // Initialize Gemini API Client
 // We assume process.env.API_KEY is available in the build environment
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// If API_KEY is missing, we initialize with a placeholder to allow the app to load, 
+// but individual calls will check and throw errors.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || 'MISSING_KEY' });
 
 // Model Constants
-const TEXT_MODEL = 'gemini-3-flash-preview';
+// Use Flash for low-latency tasks like Search
+const BASIC_MODEL = 'gemini-3-flash-preview';
+// Use Pro for high-intelligence creative tasks (Poetry writing, deep translation)
+const CREATIVE_MODEL = 'gemini-3-pro-preview';
+// Use Flash Image for image generation
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
 // ============================================================================
@@ -96,6 +102,13 @@ const TRANSLATION_SCHEMA: Schema = {
   required: ['modern', 'analysis']
 };
 
+// Helper to check API Key
+const checkApiKey = () => {
+  if (!process.env.API_KEY || process.env.API_KEY === 'MISSING_KEY') {
+    throw new Error("API_KEY_MISSING");
+  }
+};
+
 // ============================================================================
 // Service Exports
 // ============================================================================
@@ -106,8 +119,10 @@ export const getModelsForMode = (mode: WorkflowMode): ModelOption[] => {
 
 /**
  * Search Poems using Gemini
+ * Uses BASIC_MODEL (Flash) for speed and retrieval tasks.
  */
 export const searchPoems = async (filters: SearchFilters, excludeTitles: string[] = []): Promise<Poem[]> => {
+  checkApiKey();
   try {
     const prompt = `
       You are an expert in Chinese classical literature.
@@ -123,7 +138,7 @@ export const searchPoems = async (filters: SearchFilters, excludeTitles: string[
     `;
 
     const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: BASIC_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -156,16 +171,21 @@ export const searchPoems = async (filters: SearchFilters, excludeTitles: string[
 
 /**
  * Generate Painting from Poem (Text -> Image)
+ * Uses IMAGE_MODEL (Nano Banana / Flash Image).
  */
 export const generatePaintingFromPoem = async (poemContent: string, modelId: string): Promise<string | null> => {
+  checkApiKey();
   try {
     const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['paint-v1'];
     const prompt = `Create a traditional Chinese ink wash painting based on this poem: "${poemContent}". ${styleInstruction} No text in the image. High quality, artistic.`;
 
-    // Note: Nano Banana models (gemini-2.5-flash-image) do NOT support responseSchema.
+    // STRICT FORMATTING: Image models can be sensitive to content structure.
+    // Use object structure { parts: [{ text: ... }] } instead of simple string.
     const response = await ai.models.generateContent({
       model: IMAGE_MODEL,
-      contents: prompt,
+      contents: {
+        parts: [{ text: prompt }]
+      },
       config: {
         imageConfig: {
           aspectRatio: "1:1", // Square for traditional album leaf style
@@ -190,8 +210,10 @@ export const generatePaintingFromPoem = async (poemContent: string, modelId: str
 
 /**
  * Generate Poem from Painting (Image -> Text)
+ * Uses CREATIVE_MODEL (Pro) for high-quality poetic composition.
  */
 export const generatePoemFromPainting = async (base64Image: string, modelId: string): Promise<Poem | null> => {
+  checkApiKey();
   try {
     const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['poem-img-v1'];
     
@@ -210,7 +232,7 @@ export const generatePoemFromPainting = async (base64Image: string, modelId: str
     };
 
     const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: CREATIVE_MODEL,
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: "application/json",
@@ -230,14 +252,16 @@ export const generatePoemFromPainting = async (base64Image: string, modelId: str
 
 /**
  * Translate Poem
+ * Uses CREATIVE_MODEL (Pro) for nuanced understanding of classical Chinese.
  */
 export const translatePoem = async (poem: string, modelId: string): Promise<{ modern: string; analysis: string } | null> => {
+  checkApiKey();
   try {
     const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['trans-v1'];
     const prompt = `Translate the following classical Chinese text to modern Chinese and provide an analysis. Text: "${poem}". Requirement: ${styleInstruction}. Return JSON.`;
 
     const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: CREATIVE_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -257,14 +281,16 @@ export const translatePoem = async (poem: string, modelId: string): Promise<{ mo
 
 /**
  * Modern to Ancient Poem
+ * Uses CREATIVE_MODEL (Pro) for better style transfer and rhyming.
  */
 export const generateAncientPoemFromModern = async (modernText: string, modelId: string): Promise<Poem | null> => {
+  checkApiKey();
   try {
     const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['rewrite-v1'];
     const prompt = `Rewrite the following modern text into a classical Chinese poem. Modern text: "${modernText}". Requirement: ${styleInstruction}. Return JSON.`;
 
     const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: CREATIVE_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",

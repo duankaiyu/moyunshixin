@@ -156,9 +156,15 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
       if (output) {
         saveToHistory(activeMode, currentInput, output);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Workflow failed", e);
-      showNotification("生成失败，请检查 API 配置或网络连接");
+      let msg = "生成失败，请检查 API 配置或网络连接";
+      if (e.message && e.message.includes("API_KEY_MISSING")) {
+        msg = "未检测到 API Key，请确保 .env 文件存在且配置正确";
+      } else if (e.message && (e.message.includes("403") || e.message.includes("400"))) {
+        msg = "请求被拒绝，请检查 API Key 权限或模型可用性";
+      }
+      showNotification(msg);
     } finally {
       setLoading(false);
     }

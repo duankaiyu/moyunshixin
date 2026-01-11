@@ -10,6 +10,7 @@ import {
 import { historyService } from '../services/historyService';
 import { PoemCard } from './PoemCard';
 import { Notification } from './Notification';
+import { ImageModal } from './ImageModal';
 
 interface WorkflowSectionProps {
   userId: string;
@@ -29,6 +30,9 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
   // Model Selection State
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
+
+  // Image Modal State
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -173,7 +177,6 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
       } else if (errorText.includes("503") || errorText.includes("500")) {
         msg = "AI 服务暂时不可用，请稍后重试。";
       } else {
-         // Show a snippet of the error for better debugging
          msg = `生成失败: ${errorText.substring(0, 60)}...`;
       }
       
@@ -184,17 +187,11 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
   };
 
   const loadHistoryItem = (item: HistoryItem) => {
-    // 1. Set the mode
     setActiveMode(item.mode);
-    
-    // 2. Set the data directly
     setResult(item.result);
     
-    // 3. Restore inputs
     if (item.mode === WorkflowMode.PAINTING_TO_POEM) {
-      // Restore the image preview from the saved input (Base64)
       setPreviewImage(item.input);
-      // Reset text input to avoid confusion
       setInputText('');
     } else {
       setInputText(item.input);
@@ -261,7 +258,6 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
                       <span className="text-xs text-stone-400">{new Date(item.timestamp).toLocaleDateString()}</span>
                     </div>
                     
-                    {/* Content Preview */}
                     <div className="text-stone-800 font-serif text-sm mb-2">
                       {item.mode === WorkflowMode.PAINTING_TO_POEM ? (
                         <div className="flex items-center gap-3 bg-stone-100 p-2 rounded border border-stone-200">
@@ -410,13 +406,13 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
           </div>
         </div>
 
-        {/* Output Area */}
-        <div className="bg-[#fffdf9]/90 backdrop-blur-md p-8 rounded shadow-lg border border-stone-200/60 min-h-[460px] relative">
-           <h3 className="text-2xl font-serif font-bold text-stone-800 mb-6 border-l-4 border-red-800 pl-4">
+        {/* Output Area - UPDATED LAYOUT */}
+        <div className="bg-[#fffdf9]/90 backdrop-blur-md p-8 rounded shadow-lg border border-stone-200/60 min-h-[460px] relative flex flex-col">
+           <h3 className="text-2xl font-serif font-bold text-stone-800 mb-6 border-l-4 border-red-800 pl-4 flex-shrink-0">
             生成结果
           </h3>
           
-          <div className="flex items-center justify-center h-full pb-8">
+          <div className="flex-1 flex items-center justify-center w-full pb-8">
             {!result && !loading && (
               <div className="text-stone-400 text-center select-none">
                 <div className="text-8xl mb-6 font-calligraphy opacity-20">墨</div>
@@ -430,10 +426,25 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
                </div>
             )}
 
-            {/* Mode 1: Result is Image */}
+            {/* Mode 1: Result is Image (Added Click to Enlarge) */}
             {activeMode === WorkflowMode.POEM_TO_PAINTING && result && (
-              <div className="w-full">
-                <img src={result} alt="AI Generated" className="w-full h-auto rounded shadow-md border-8 border-[#f0f0f0]" />
+              <div className="w-full flex flex-col items-center animate-fade-in">
+                {/* Image itself is clickable but no longer has overlay */}
+                <div 
+                  className="w-full relative cursor-zoom-in hover:shadow-lg transition-shadow duration-300 flex justify-center"
+                  onClick={() => setViewingImage(result)}
+                >
+                  <img src={result} alt="AI Generated" className="max-w-full h-auto rounded shadow-md border-8 border-[#f0f0f0]" />
+                </div>
+                
+                {/* Separate button below the image */}
+                <button
+                  onClick={() => setViewingImage(result)}
+                  className="mt-4 px-4 py-2 flex items-center gap-2 text-stone-500 hover:text-red-900 font-serif text-sm border border-transparent hover:border-stone-200 hover:bg-white/50 rounded-full transition-all duration-300 group"
+                >
+                  <span className="group-hover:scale-110 transition-transform">🔍</span>
+                  <span>点击查看高清大图</span>
+                </button>
               </div>
             )}
 
@@ -458,6 +469,11 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
           </div>
         </div>
       </div>
+
+      {/* Full Screen Image Modal */}
+      {viewingImage && (
+        <ImageModal imageUrl={viewingImage} onClose={() => setViewingImage(null)} />
+      )}
     </div>
   );
 };

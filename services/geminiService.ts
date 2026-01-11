@@ -5,94 +5,94 @@ import { Poem, SearchFilters, WorkflowMode, ModelOption } from "../types";
 // Initialization
 // ============================================================================
 
-// Initialize Gemini API Client
-// We assume process.env.API_KEY is available in the build environment
-// If API_KEY is missing, we initialize with a placeholder to allow the app to load, 
-// but individual calls will check and throw errors.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || 'MISSING_KEY' });
 
-// Model Constants
-// Use Flash for low-latency tasks like Search
-const BASIC_MODEL = 'gemini-3-flash-preview';
-// Use Pro for high-intelligence creative tasks (Poetry writing, deep translation)
-const CREATIVE_MODEL = 'gemini-3-pro-preview';
-// Use Flash Image for image generation
-const IMAGE_MODEL = 'gemini-2.5-flash-image';
+// Gemini Constants (Fallback / Search)
+const BASIC_MODEL = 'gemini-3-flash-preview'; 
+const CREATIVE_MODEL = 'gemini-3-pro-preview'; 
+
+// ============================================================================
+// COZE CONFIGURATION (Multi-User Setup)
+// ============================================================================
+
+// 1. 文生图配置 (Painting Owner) - 支持多种画幅
+// 注意：这三个模型共用同一个 COZE_API_KEY_PAINTING
+const PAINTING_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
+  'coze-paint-9-16': {
+    WORKFLOW_ID: '7559058997119860776', // 竖幅
+    APP_ID: '7559025814764027904',
+  },
+  'coze-paint-4-3': {
+    WORKFLOW_ID: '7559058331965718567', // 横幅
+    APP_ID: '7559043000534319123',
+  },
+  'coze-paint-1-1': {
+    WORKFLOW_ID: '7559058177272381481', // 方幅
+    APP_ID: '7559035402452238390',
+  }
+};
+
+// 2. 图生文配置 (Poem Owner) - 待填入
+const COZE_CONFIG_POEM = {
+  WORKFLOW_ID: 'REPLACE_WITH_POEM_WORKFLOW_ID', 
+  APP_ID: 'REPLACE_WITH_POEM_APP_ID',
+  API_KEY: process.env.COZE_API_KEY_POEM
+};
+
+// 3. 翻译/改写配置 (Translation Owner) - 待填入
+const COZE_CONFIG_TRANS = {
+  WORKFLOW_ID: 'REPLACE_WITH_TRANS_WORKFLOW_ID',
+  APP_ID: 'REPLACE_WITH_TRANS_APP_ID',
+  API_KEY: process.env.COZE_API_KEY_TRANS
+};
 
 // ============================================================================
 // Configuration & Prompts
 // ============================================================================
 
-// Definitions for UI Dropdown
 const MODEL_OPTIONS: Record<WorkflowMode, ModelOption[]> = {
   [WorkflowMode.POEM_TO_PAINTING]: [
-    { id: 'paint-v1', name: '水墨丹青 (标准)' },
-    { id: 'paint-v2', name: '工笔重彩 (细腻)' },
-    { id: 'paint-v3', name: '泼墨写意 (抽象)' },
+    { id: 'coze-paint-9-16', name: '墨韵丹青 (9:16 竖幅)' },
+    { id: 'coze-paint-4-3', name: '墨韵丹青 (4:3 横幅)' },
+    { id: 'coze-paint-1-1', name: '墨韵丹青 (1:1 方图)' },
   ],
   [WorkflowMode.PAINTING_TO_POEM]: [
-    { id: 'poem-img-v1', name: '七言绝句 (经典)' },
-    { id: 'poem-img-v2', name: '五言律诗 (凝练)' },
-    { id: 'poem-img-v3', name: '宋词长调 (抒情)' },
+    { id: 'poem-img-v1', name: '七言绝句 (经典)' }, // Currently Gemini
+    // { id: 'coze-poem', name: 'Coze 题诗助手' }, // Uncomment when Coze ID is ready
   ],
   [WorkflowMode.TRANSLATION]: [
-    { id: 'trans-v1', name: '通俗白话 (易懂)' },
-    { id: 'trans-v2', name: '散文意译 (优美)' },
-    { id: 'trans-v3', name: '学术解析 (深度)' },
+    { id: 'trans-v1', name: '通俗白话 (易懂)' }, // Currently Gemini
+    // { id: 'coze-trans', name: 'Coze 翻译官' }, // Uncomment when Coze ID is ready
   ],
   [WorkflowMode.MODERN_TO_ANCIENT]: [
     { id: 'rewrite-v1', name: '唐诗风格' },
-    { id: 'rewrite-v2', name: '宋词风格' },
-    { id: 'rewrite-v3', name: '元曲风格' },
   ],
 };
 
-// Prompt modifiers based on selected model ID
 const STYLE_PROMPTS: Record<string, string> = {
-  // Painting Styles
-  'paint-v1': 'Style: Traditional Chinese Ink Wash Painting (Shui-mo hua). Composition: Balanced, elegant, emphasis on empty space (Liubai). Tone: Classical, Serene.',
-  'paint-v2': 'Style: Gongbi (Meticulous style). details: Highly detailed, fine brushwork, mineral colors (blue, green, ochre). Tone: Refined, Royal.',
-  'paint-v3': 'Style: Xieyi (Freehand style). Technique: Splash ink, abstract forms, bold strokes, minimal details. Tone: Expressive, Zen.',
-
-  // Poem Formats
+  // Existing Gemini prompts...
   'poem-img-v1': '体裁：七言绝句。要求：意境优美，格律严谨。',
-  'poem-img-v2': '体裁：五言律诗。要求：对仗工整，意蕴悠长。',
-  'poem-img-v3': '体裁：宋词（长调）。要求：辞藻华丽，情感细腻。',
-
-  // Translation Styles
   'trans-v1': '风格：通俗易懂，现代化口语，适合初学者。',
-  'trans-v2': '风格：优美的散文，注重保留原诗意境和美感。',
-  'trans-v3': '风格：学术性，包含字词深度解析和典故说明。',
-
-  // Rewrite Styles
   'rewrite-v1': '风格：唐诗（豪放或浪漫）。',
-  'rewrite-v2': '风格：宋词（婉约或豪放）。',
-  'rewrite-v3': '风格：元曲（通俗清新）。',
 };
 
 // ============================================================================
 // Schemas
 // ============================================================================
 
-// Schema for Poem Object
 const POEM_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
     title: { type: Type.STRING, description: "The title of the poem" },
     author: { type: Type.STRING, description: "The author's name" },
     dynasty: { type: Type.STRING, description: "The dynasty (e.g., Tang, Song)" },
-    content: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "Lines of the poem"
-    },
+    content: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lines of the poem" },
     translation: { type: Type.STRING, description: "Modern Chinese translation" },
     explanation: { type: Type.STRING, description: "Brief analysis or appreciation" },
   },
   required: ['title', 'author', 'dynasty', 'content']
 };
 
-// Schema for Translation/Analysis Result
 const TRANSLATION_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -102,33 +102,146 @@ const TRANSLATION_SCHEMA: Schema = {
   required: ['modern', 'analysis']
 };
 
-// Helper to check API Key
 const checkApiKey = () => {
   if (!process.env.API_KEY || process.env.API_KEY === 'MISSING_KEY') {
     throw new Error("API_KEY_MISSING");
   }
 };
 
+// ============================================================================
+// Coze Core Logic (Reusable)
+// ============================================================================
+
 /**
- * Retry Helper with Exponential Backoff
- * Handles 429 (Too Many Requests) and 503 (Service Unavailable)
- * 
- * Update: Increased default retries to 5 (approx 62s total wait) to handle 
- * the 1-minute quota reset window of the free tier.
+ * Helper: Select the best URL from a list of candidates.
+ * Prioritizes direct image links (CDN) over redirect/short links.
  */
-const retryOperation = async <T>(operation: () => Promise<T>, retries = 5, delay = 2000): Promise<T> => {
-  try {
-    return await operation();
-  } catch (error: any) {
-    const msg = error.message || error.toString();
-    // Only retry on rate limits or temporary server errors
-    if (retries > 0 && (msg.includes('429') || msg.includes('503'))) {
-      console.warn(`API Limit hit (${msg}). Retrying in ${delay/1000}s... (Attempts left: ${retries})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return retryOperation(operation, retries - 1, delay * 2);
+const selectBestUrl = (urls: string[]): string | null => {
+  if (urls.length === 0) return null;
+  
+  let bestUrl = urls[0];
+  let maxScore = -1;
+
+  for (const url of urls) {
+    let score = 0;
+    
+    // Feature 1: Image Extensions (Highest Priority)
+    if (/\.(png|jpg|jpeg|webp|gif|bmp)($|\?)/i.test(url)) score += 100;
+    
+    // Feature 2: Known Image CDNs (High Priority)
+    if (url.includes('p16-') || url.includes('tos-') || url.includes('volcengine') || url.includes('ciciai')) score += 50;
+    
+    // Feature 3: Short links (Low Priority)
+    // These often redirect or are web pages, which don't render in <img src>
+    if (url.includes('s.coze.cn')) score += 10;
+
+    console.log(`URL Candidate: ${url} | Score: ${score}`);
+
+    if (score > maxScore) {
+      maxScore = score;
+      bestUrl = url;
     }
-    throw error;
   }
+  
+  return bestUrl;
+};
+
+/**
+ * Universal function to call any Coze Workflow via the Vite Proxy
+ */
+const runCozeWorkflow = async (
+  config: { WORKFLOW_ID: string; APP_ID: string; API_KEY?: string },
+  parameters: Record<string, any>
+): Promise<string | any> => {
+  
+  if (!config.API_KEY) {
+    throw new Error("COZE_API_KEY_MISSING: 此功能未配置 Coze Token");
+  }
+
+  // 1. Call API
+  console.log("Calling Coze Workflow:", config.WORKFLOW_ID, parameters);
+  const response = await fetch('/coze-api/v1/workflow/stream_run', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${config.API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      workflow_id: config.WORKFLOW_ID,
+      app_id: config.APP_ID,
+      parameters: parameters
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Coze API Error: ${response.status} - ${errText}`);
+  }
+
+  if (!response.body) throw new Error("No response body from Coze API");
+
+  // 2. Parse Stream
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  
+  // Store ALL unique URLs found during the stream
+  const foundUrls = new Set<string>();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || ''; 
+
+    for (const line of lines) {
+      if (line.startsWith('data:')) {
+        const dataStr = line.slice(5).trim();
+        
+        // Skip Keep-alive or Done messages
+        if (!dataStr || dataStr === '[DONE]') continue;
+
+        try {
+           const dataJson = JSON.parse(dataStr);
+           // Log for debug
+           console.log("Coze Stream Event:", dataJson);
+
+           // Aggressive URL Extraction
+           const rawString = JSON.stringify(dataJson);
+           const urlMatches = rawString.match(/https?:\/\/[^\s"']+/g);
+
+           if (urlMatches) {
+             for (const url of urlMatches) {
+               // 1. Exclude Coze Debug/Editor URLs (Internal)
+               if (url.includes('coze.cn/work_flow') || 
+                   url.includes('coze.cn/space') || 
+                   url.includes('coze.cn/project')) {
+                 continue;
+               }
+
+               // 2. Clean URL (remove trailing quotes, brackets, or backslashes)
+               const cleanUrl = url.replace(/[\\"')\]}]+$/, '');
+               
+               if (!foundUrls.has(cleanUrl)) {
+                 console.log("Found URL:", cleanUrl);
+                 foundUrls.add(cleanUrl);
+               }
+             }
+           }
+        } catch (e) { 
+          console.warn("Chunk Parse Warning:", e); 
+        }
+      }
+    }
+  }
+
+  // 3. Select the best URL from all found candidates
+  const bestUrl = selectBestUrl(Array.from(foundUrls));
+  console.log("Final Selected URL:", bestUrl);
+  
+  return bestUrl;
 };
 
 // ============================================================================
@@ -139,53 +252,16 @@ export const getModelsForMode = (mode: WorkflowMode): ModelOption[] => {
   return MODEL_OPTIONS[mode] || [];
 };
 
-/**
- * Search Poems using Gemini
- * Uses BASIC_MODEL (Flash) for speed and retrieval tasks.
- */
 export const searchPoems = async (filters: SearchFilters, excludeTitles: string[] = []): Promise<Poem[]> => {
   checkApiKey();
   try {
-    const prompt = `
-      You are an expert in Chinese classical literature.
-      Find 3-6 distinct Chinese classical poems that match the following criteria:
-      - Keyword: ${filters.keyword || 'Any'}
-      - Author: ${filters.author || 'Any'}
-      - Dynasty: ${filters.dynasty || 'Any'}
-      - Emotion/Theme: ${filters.emotion || 'Any'}
-      
-      Exclude these titles: ${excludeTitles.join(', ')}.
-      
-      Return the result as a JSON array of poem objects.
-    `;
-
-    // Wrap the API call in retry logic
-    const response = await retryOperation(() => ai.models.generateContent({
+    const prompt = `Find 3-6 distinct Chinese classical poems. JSON format. Criteria: ${JSON.stringify(filters)}. Exclude: ${excludeTitles.join(',')}`;
+    const response = await ai.models.generateContent({
       model: BASIC_MODEL,
       contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: POEM_SCHEMA
-        }
-      }
-    }));
-
-    if (response.text) {
-      const parsed = JSON.parse(response.text);
-      // Handle case where model wraps array in an object
-      if (Array.isArray(parsed)) {
-        return parsed as Poem[];
-      } else if (typeof parsed === 'object' && parsed !== null) {
-        // Look for any property that is an array
-        const possibleArray = Object.values(parsed).find(val => Array.isArray(val));
-        if (possibleArray) {
-          return possibleArray as Poem[];
-        }
-      }
-    }
-    return [];
+      config: { responseMimeType: "application/json", responseSchema: { type: Type.ARRAY, items: POEM_SCHEMA } }
+    });
+    return response.text ? JSON.parse(response.text) : [];
   } catch (error) {
     console.error("Search failed:", error);
     throw error;
@@ -193,140 +269,94 @@ export const searchPoems = async (filters: SearchFilters, excludeTitles: string[
 };
 
 /**
- * Generate Painting from Poem (Text -> Image)
- * Uses IMAGE_MODEL (Nano Banana / Flash Image).
+ * 1. Text to Painting (Uses Coze - Painting Config)
  */
 export const generatePaintingFromPoem = async (poemContent: string, modelId: string): Promise<string | null> => {
-  checkApiKey();
   try {
-    const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['paint-v1'];
-    const prompt = `Create a traditional Chinese ink wash painting based on this poem: "${poemContent}". ${styleInstruction} No text in the image. High quality, artistic.`;
-
-    // STRICT FORMATTING: Image models can be sensitive to content structure.
-    // Use object structure { parts: [{ text: ... }] } instead of simple string.
-    const response = await retryOperation(() => ai.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: {
-        parts: [{ text: prompt }]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1", // Square for traditional album leaf style
-        }
-      }
-    }));
-
-    // Extract image from response parts
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData && part.inlineData.data) {
-          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        }
-      }
+    // 1. 根据前端传来的 modelId 获取配置
+    const specificConfig = PAINTING_MODELS_CONFIG[modelId];
+    
+    if (!specificConfig) {
+      throw new Error(`未找到 ID 为 ${modelId} 的模型配置`);
     }
-    return null;
+
+    // 2. 组合配置
+    const runConfig = {
+      ...specificConfig,
+      API_KEY: process.env.COZE_API_KEY_PAINTING
+    };
+
+    // 3. Send parameters
+    const params = { 
+      input: poemContent,
+      prompt: poemContent,
+      content: poemContent
+    };
+
+    const result = await runCozeWorkflow(runConfig, params);
+    
+    if (!result) {
+       console.warn("Coze workflow finished but no URL was extracted.");
+       return null;
+    }
+
+    // Double check it looks like a URL
+    const urlMatch = typeof result === 'string' ? result.match(/https?:\/\/[^\s<>"')]+/) : null;
+    return urlMatch ? urlMatch[0] : null;
+
   } catch (error) {
-    console.error("Image generation failed:", error);
+    console.error("Coze Painting failed:", error);
     throw error;
   }
 };
 
 /**
- * Generate Poem from Painting (Image -> Text)
- * Uses CREATIVE_MODEL (Pro) for high-quality poetic composition.
+ * 2. Painting to Poem (Hybrid: Gemini or Coze)
  */
 export const generatePoemFromPainting = async (base64Image: string, modelId: string): Promise<Poem | null> => {
   checkApiKey();
-  try {
-    const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['poem-img-v1'];
-    
-    // Clean base64 string
-    const base64Data = base64Image.split(',')[1];
-    
-    const imagePart = {
-      inlineData: {
-        mimeType: 'image/png', // Assuming PNG or JPEG, API is flexible
-        data: base64Data
-      }
-    };
-    
-    const textPart = {
-      text: `Role: Chinese Poet. Task: Write a classical Chinese poem describing this image. ${styleInstruction}. Return the result in JSON format.`
-    };
-
-    const response = await retryOperation(() => ai.models.generateContent({
-      model: CREATIVE_MODEL,
-      contents: { parts: [imagePart, textPart] },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: POEM_SCHEMA
-      }
-    }));
-
-    if (response.text) {
-      return JSON.parse(response.text) as Poem;
-    }
-    return null;
-  } catch (error) {
-    console.error("Poem generation from painting failed:", error);
-    throw error;
-  }
+  const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['poem-img-v1'];
+  const base64Data = base64Image.split(',')[1];
+  const contents = { 
+    parts: [
+      { inlineData: { mimeType: 'image/png', data: base64Data } },
+      { text: `Role: Chinese Poet. Task: Write a poem describing this. ${styleInstruction}. Return JSON.` }
+    ] 
+  };
+  
+  const response = await ai.models.generateContent({
+    model: CREATIVE_MODEL,
+    contents: contents,
+    config: { responseMimeType: "application/json", responseSchema: POEM_SCHEMA }
+  });
+  return response.text ? JSON.parse(response.text) : null;
 };
 
 /**
- * Translate Poem
- * Uses CREATIVE_MODEL (Pro) for nuanced understanding of classical Chinese.
+ * 3. Translation (Hybrid: Gemini or Coze)
  */
 export const translatePoem = async (poem: string, modelId: string): Promise<{ modern: string; analysis: string } | null> => {
   checkApiKey();
-  try {
-    const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['trans-v1'];
-    const prompt = `Translate the following classical Chinese text to modern Chinese and provide an analysis. Text: "${poem}". Requirement: ${styleInstruction}. Return JSON.`;
-
-    const response = await retryOperation(() => ai.models.generateContent({
-      model: CREATIVE_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: TRANSLATION_SCHEMA
-      }
-    }));
-
-    if (response.text) {
-      return JSON.parse(response.text);
-    }
-    return null;
-  } catch (error) {
-    console.error("Translation failed:", error);
-    throw error;
-  }
+  const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['trans-v1'];
+  const prompt = `Translate to modern Chinese + Analysis. Text: "${poem}". Requirement: ${styleInstruction}. Return JSON.`;
+  
+  const response = await ai.models.generateContent({
+    model: CREATIVE_MODEL,
+    contents: prompt,
+    config: { responseMimeType: "application/json", responseSchema: TRANSLATION_SCHEMA }
+  });
+  return response.text ? JSON.parse(response.text) : null;
 };
 
-/**
- * Modern to Ancient Poem
- * Uses CREATIVE_MODEL (Pro) for better style transfer and rhyming.
- */
 export const generateAncientPoemFromModern = async (modernText: string, modelId: string): Promise<Poem | null> => {
   checkApiKey();
-  try {
-    const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['rewrite-v1'];
-    const prompt = `Rewrite the following modern text into a classical Chinese poem. Modern text: "${modernText}". Requirement: ${styleInstruction}. Return JSON.`;
-
-    const response = await retryOperation(() => ai.models.generateContent({
-      model: CREATIVE_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: POEM_SCHEMA
-      }
-    }));
-
-    if (response.text) {
-      return JSON.parse(response.text) as Poem;
-    }
-    return null;
-  } catch (error) {
-    console.error("Modern to Ancient generation failed:", error);
-    throw error;
-  }
+  const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['rewrite-v1'];
+  const prompt = `Rewrite modern text to classical poem. Text: "${modernText}". Requirement: ${styleInstruction}. Return JSON.`;
+  
+  const response = await ai.models.generateContent({
+    model: CREATIVE_MODEL,
+    contents: prompt,
+    config: { responseMimeType: "application/json", responseSchema: POEM_SCHEMA }
+  });
+  return response.text ? JSON.parse(response.text) : null;
 };

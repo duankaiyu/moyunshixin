@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SearchFilters, Poem } from '../types';
-import { searchPoems } from '../services/geminiService';
+import { searchPoems } from '../services/workflowService';
 import { PoemCard } from './PoemCard';
 import { Notification } from './Notification';
 

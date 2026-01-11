@@ -6,7 +6,7 @@ import {
   translatePoem, 
   generateAncientPoemFromModern,
   getModelsForMode
-} from '../services/geminiService';
+} from '../services/workflowService';
 import { historyService } from '../services/historyService';
 import { PoemCard } from './PoemCard';
 import { Notification } from './Notification';

@@ -5,53 +5,21 @@ import { Poem, WorkflowMode, ModelOption } from "../types";
 // Initialization
 // ============================================================================
 
-// 检查 Key 是否存在，如果不存在则标记，但不要立即崩溃，允许应用启动
 const apiKey = process.env.API_KEY;
 const isKeyValid = apiKey && apiKey !== 'MISSING_KEY';
-
 const ai = new GoogleGenAI({ apiKey: isKeyValid ? apiKey : 'samedummykey' });
 
-// Gemini Constants
+// Gemini Constants (作为兜底或直接调用使用)
 const CREATIVE_MODEL = 'gemini-3-pro-preview'; 
 
 // ============================================================================
-// UTILITIES: Retry Strategy (关键：解决不稳定的核心)
+// COZE CONFIGURATION (组员填写区域)
 // ============================================================================
 
 /**
- * 带有指数退避的重试函数
- * 当遇到 429 (Too Many Requests) 或 503 (Service Unavailable) 时自动重试
+ * 1. 文生图配置
+ * 对应 API Key: process.env.COZE_API_KEY_PAINTING
  */
-async function retryWithBackoff<T>(
-  operation: () => Promise<T>, 
-  retries: number = 3, 
-  delay: number = 1000
-): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: any) {
-    const msg = error.message || error.toString();
-    // 检查是否为限流或服务器繁忙错误
-    const isRetryable = msg.includes('429') || msg.includes('503') || msg.includes('500') || msg.includes('Overloaded');
-    
-    if (retries > 0 && isRetryable) {
-      console.warn(`API Busy/Limit hit. Retrying in ${delay}ms... (Left: ${retries})`);
-      // 等待指定时间
-      await new Promise(resolve => setTimeout(resolve, delay));
-      // 递归重试，等待时间翻倍 (Exponential Backoff)
-      return retryWithBackoff(operation, retries - 1, delay * 2);
-    }
-    
-    // 如果重试次数用尽或不是可重试的错误，则抛出异常
-    throw error;
-  }
-}
-
-// ============================================================================
-// COZE CONFIGURATION (Multi-User Setup)
-// ============================================================================
-
-// 1. 文生图配置 (Painting Owner)
 const PAINTING_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
   'coze-paint-9-16': {
     WORKFLOW_ID: '7559058997119860776', 
@@ -67,6 +35,70 @@ const PAINTING_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: stri
   }
 };
 
+/**
+ * 2. 图生文配置 
+ * 请在此处填入 3 个不同的工作流 ID
+ * 对应 API Key: process.env.COZE_API_KEY_POEM
+ */
+const POEM_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
+  'coze-poem-1': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  },
+  'coze-poem-2': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  },
+  'coze-poem-3': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  }
+};
+
+/**
+ * 3. 翻译/古文配置
+ * 请在此处填入 3 个不同的工作流 ID
+ * 对应 API Key: process.env.COZE_API_KEY_TRANS
+ */
+const TRANS_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
+  'coze-trans-1': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  },
+  'coze-trans-2': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  },
+  'coze-trans-3': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  }
+};
+
+/**
+ * 4. 白话转古诗配置
+ * 请在此处填入 3 个不同的工作流 ID
+ * 对应 API Key: process.env.COZE_API_KEY_TRANS (假设共用翻译 Key，或您需要添加新的 Key)
+ */
+const REWRITE_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
+  'coze-rewrite-1': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  },
+  'coze-rewrite-2': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  },
+  'coze-rewrite-3': {
+    WORKFLOW_ID: 'REPLACE_WITH_ID', // 
+    APP_ID: 'REPLACE_WITH_ID',
+  }
+};
+
+// ============================================================================
+// Model Options (UI 显示名称配置)
+// ============================================================================
+
 const MODEL_OPTIONS: Record<WorkflowMode, ModelOption[]> = {
   [WorkflowMode.POEM_TO_PAINTING]: [
     { id: 'coze-paint-9-16', name: '墨韵丹青 (9:16 竖幅)' },
@@ -74,74 +106,42 @@ const MODEL_OPTIONS: Record<WorkflowMode, ModelOption[]> = {
     { id: 'coze-paint-1-1', name: '墨韵丹青 (1:1 方图)' },
   ],
   [WorkflowMode.PAINTING_TO_POEM]: [
-    { id: 'poem-img-v1', name: '七言绝句 (经典)' }, 
+    { id: 'coze-poem-1', name: '七言绝句 (经典)' }, 
+    { id: 'coze-poem-2', name: '五言律诗 (严谨)' }, 
+    { id: 'coze-poem-3', name: '宋词长短句 (婉约)' }, 
   ],
   [WorkflowMode.TRANSLATION]: [
-    { id: 'trans-v1', name: '通俗白话 (易懂)' }, 
+    { id: 'coze-trans-1', name: '通俗白话 (易懂)' }, 
+    { id: 'coze-trans-2', name: '深度赏析 (学术)' }, 
+    { id: 'coze-trans-3', name: '英文意译 (国际)' }, 
   ],
   [WorkflowMode.MODERN_TO_ANCIENT]: [
-    { id: 'rewrite-v1', name: '唐诗风格' },
+    { id: 'coze-rewrite-1', name: '唐诗风格 (豪放)' },
+    { id: 'coze-rewrite-2', name: '宋词风格 (细腻)' },
+    { id: 'coze-rewrite-3', name: '诗经风格 (古朴)' },
   ],
 };
 
-const STYLE_PROMPTS: Record<string, string> = {
-  'poem-img-v1': '体裁：七言绝句。要求：意境优美，格律严谨。',
-  'trans-v1': '风格：通俗易懂，现代化口语，适合初学者。',
-  'rewrite-v1': '风格：唐诗（豪放或浪漫）。',
-};
-
 // ============================================================================
-// Schemas
-// ============================================================================
-
-const POEM_SCHEMA: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    title: { type: Type.STRING, description: "The title of the poem" },
-    author: { type: Type.STRING, description: "The author's name" },
-    dynasty: { type: Type.STRING, description: "The dynasty (e.g., Tang, Song)" },
-    content: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lines of the poem" },
-    translation: { type: Type.STRING, description: "Modern Chinese translation" },
-    explanation: { type: Type.STRING, description: "Brief analysis or appreciation" },
-  },
-  required: ['title', 'author', 'dynasty', 'content']
-};
-
-const TRANSLATION_SCHEMA: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    modern: { type: Type.STRING, description: "Modern Chinese translation" },
-    analysis: { type: Type.STRING, description: "Detailed analysis and appreciation" },
-  },
-  required: ['modern', 'analysis']
-};
-
-// ============================================================================
-// Coze Core Logic (Reusable)
+// Coze Core Logic (Upgraded for Text & Image)
 // ============================================================================
 
 const selectBestUrl = (urls: string[]): string | null => {
   if (urls.length === 0) return null;
-  let bestUrl = urls[0];
-  let maxScore = -1;
-  for (const url of urls) {
-    let score = 0;
-    if (/\.(png|jpg|jpeg|webp|gif|bmp)($|\?)/i.test(url)) score += 100;
-    if (url.includes('p16-') || url.includes('tos-') || url.includes('volcengine') || url.includes('ciciai')) score += 50;
-    if (url.includes('s.coze.cn')) score += 10;
-    if (score > maxScore) {
-      maxScore = score;
-      bestUrl = url;
-    }
-  }
-  return bestUrl;
+  return urls[0]; // 简化策略，直接返回第一个匹配到的有效链接
 };
 
+/**
+ * 通用 Coze 工作流调用函数
+ * 支持返回图片 URL (用于文生图) 或 聚合文本 (用于其他模式)
+ */
 const runCozeWorkflow = async (
   config: { WORKFLOW_ID: string; APP_ID: string; API_KEY?: string },
-  parameters: Record<string, any>
-): Promise<string | any> => {
+  parameters: Record<string, any>,
+  expectJson: boolean = false // 如果期望返回 JSON 文本，设为 true
+): Promise<string> => {
   if (!config.API_KEY) throw new Error("COZE_API_KEY_MISSING: 此功能未配置 Coze Token");
+  if (config.WORKFLOW_ID === 'REPLACE_WITH_ID') throw new Error("WORKFLOW_ID_MISSING: 该模型尚未配置 ID，请联系管理员");
 
   const response = await fetch('/coze-api/v1/workflow/stream_run', {
     method: 'POST',
@@ -158,6 +158,10 @@ const runCozeWorkflow = async (
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  
+  // 用于收集文本输出
+  let fullTextOutput = '';
+  // 用于收集图片链接
   const foundUrls = new Set<string>();
 
   while (true) {
@@ -173,20 +177,49 @@ const runCozeWorkflow = async (
         if (!dataStr || dataStr === '[DONE]') continue;
         try {
            const dataJson = JSON.parse(dataStr);
+           
+           // 1. 尝试提取文本内容 (Coze 工作流通常在 content 或 data 字段返回文本)
+           if (dataJson.data && typeof dataJson.data === 'string') {
+             fullTextOutput += dataJson.data; // 简单的 append
+           } else if (dataJson.content) {
+             fullTextOutput += dataJson.content;
+           } else if (dataJson.data && dataJson.data.content) {
+             fullTextOutput += dataJson.data.content;
+           }
+
+           // 2. 尝试提取 URL (用于文生图)
            const rawString = JSON.stringify(dataJson);
            const urlMatches = rawString.match(/https?:\/\/[^\s"']+/g);
            if (urlMatches) {
              for (const url of urlMatches) {
-               if (url.includes('coze.cn/work_flow') || url.includes('coze.cn/space') || url.includes('coze.cn/project')) continue;
+               // 过滤掉 Coze 内部域名的干扰链接
+               if (url.includes('coze.cn/work_flow') || url.includes('coze.cn/space')) continue;
                const cleanUrl = url.replace(/[\\"')\]}]+$/, '');
-               if (!foundUrls.has(cleanUrl)) foundUrls.add(cleanUrl);
+               if (/\.(png|jpg|jpeg|webp|gif|bmp)/i.test(cleanUrl)) {
+                 foundUrls.add(cleanUrl);
+               }
              }
            }
         } catch (e) { }
       }
     }
   }
-  return selectBestUrl(Array.from(foundUrls));
+
+  // 结果返回逻辑
+  if (expectJson) {
+    // 如果是文生图以外的模式，我们优先返回文本内容
+    // 假设 Coze 工作流最后输出的是一段 JSON 字符串
+    // 我们尝试从收集到的 fullTextOutput 中提取 JSON 部分
+    // 或者直接返回 fullTextOutput
+    const jsonMatch = fullTextOutput.match(/\{[\s\S]*\}/);
+    return jsonMatch ? jsonMatch[0] : fullTextOutput;
+  } else {
+    // 文生图模式，优先返回图片 URL
+    const bestUrl = selectBestUrl(Array.from(foundUrls));
+    if (bestUrl) return bestUrl;
+    // 如果没找到图，返回文本报错信息
+    return fullTextOutput || "未能生成图片，请重试";
+  }
 };
 
 // ============================================================================
@@ -197,71 +230,162 @@ export const getModelsForMode = (mode: WorkflowMode): ModelOption[] => {
   return MODEL_OPTIONS[mode] || [];
 };
 
+// 1. 文生图
 export const generatePaintingFromPoem = async (poemContent: string, modelId: string): Promise<string | null> => {
   const specificConfig = PAINTING_MODELS_CONFIG[modelId];
+  // 如果找不到配置，抛出错误
   if (!specificConfig) throw new Error(`未找到 ID 为 ${modelId} 的模型配置`);
 
   const runConfig = { ...specificConfig, API_KEY: process.env.COZE_API_KEY_PAINTING };
-  const params = { input: poemContent, prompt: poemContent, content: poemContent };
+  // Coze 参数: input
+  const params = { input: poemContent, prompt: poemContent };
 
-  const result = await runCozeWorkflow(runConfig, params);
-  const urlMatch = typeof result === 'string' ? result.match(/https?:\/\/[^\s<>"')]+/) : null;
-  return urlMatch ? urlMatch[0] : null;
+  return await runCozeWorkflow(runConfig, params, false); // false = 期望返回图片 URL
 };
 
+// 2. 图生文
 export const generatePoemFromPainting = async (base64Image: string, modelId: string): Promise<Poem | null> => {
-  if (!isKeyValid) throw new Error("API_KEY_MISSING");
+  const specificConfig = POEM_MODELS_CONFIG[modelId];
   
-  const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['poem-img-v1'];
+  // 兼容逻辑：如果 Coze ID 未配置(还是REPLACE_WITH_ID)或找不到，尝试使用 Gemini 兜底 (可选)
+  if (!specificConfig || specificConfig.WORKFLOW_ID === 'REPLACE_WITH_ID') {
+     console.warn("Coze ID 未配置，尝试使用 Gemini 兜底...");
+     return await generatePoemFromPaintingGemini(base64Image);
+  }
+
+  const runConfig = { ...specificConfig, API_KEY: process.env.COZE_API_KEY_POEM };
+  // Coze 参数: image_base64 (假设您的工作流接受此参数)
+  const params = { image_base64: base64Image, input: "请根据图片生成诗词" };
+
+  const jsonStr = await runCozeWorkflow(runConfig, params, true); // true = 期望返回 JSON 文本
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error("Coze 返回的不是有效 JSON:", jsonStr);
+    throw new Error("模型返回格式错误，请检查工作流输出是否为 JSON");
+  }
+};
+
+// 3. 翻译
+export const translatePoem = async (poem: string, modelId: string): Promise<{ modern: string; analysis: string } | null> => {
+  const specificConfig = TRANS_MODELS_CONFIG[modelId];
+  
+  if (!specificConfig || specificConfig.WORKFLOW_ID === 'REPLACE_WITH_ID') {
+     console.warn("Coze ID 未配置，尝试使用 Gemini 兜底...");
+     return await translatePoemGemini(poem);
+  }
+
+  const runConfig = { ...specificConfig, API_KEY: process.env.COZE_API_KEY_TRANS };
+  const params = { input: poem };
+
+  const jsonStr = await runCozeWorkflow(runConfig, params, true);
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error("Coze JSON Parse Error", jsonStr);
+    throw new Error("翻译模型返回格式错误");
+  }
+};
+
+// 4. 白话转古诗 (改写)
+export const generateAncientPoemFromModern = async (modernText: string, modelId: string): Promise<Poem | null> => {
+  const specificConfig = REWRITE_MODELS_CONFIG[modelId];
+
+  if (!specificConfig || specificConfig.WORKFLOW_ID === 'REPLACE_WITH_ID') {
+      console.warn("Coze ID 未配置，尝试使用 Gemini 兜底...");
+      return await generateAncientPoemFromModernGemini(modernText);
+  }
+
+  const runConfig = { ...specificConfig, API_KEY: process.env.COZE_API_KEY_TRANS }; // 假设共用 Trans Key
+  const params = { input: modernText };
+
+  const jsonStr = await runCozeWorkflow(runConfig, params, true);
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error("Coze JSON Parse Error", jsonStr);
+    throw new Error("改写模型返回格式错误");
+  }
+};
+
+
+// ============================================================================
+// GEMINI FALLBACKS (保留原有的 Gemini 逻辑作为兜底，防止报错)
+// ============================================================================
+
+// Retry helper
+async function retryWithBackoff<T>(operation: () => Promise<T>, retries: number = 3, delay: number = 1000): Promise<T> {
+  try { return await operation(); } catch (error: any) {
+    if (retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return retryWithBackoff(operation, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
+
+// Gemini Schemas
+const POEM_SCHEMA_GEMINI: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING },
+    author: { type: Type.STRING },
+    dynasty: { type: Type.STRING },
+    content: { type: Type.ARRAY, items: { type: Type.STRING } },
+    translation: { type: Type.STRING },
+    explanation: { type: Type.STRING },
+  },
+  required: ['title', 'author', 'dynasty', 'content']
+};
+
+const TRANS_SCHEMA_GEMINI: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    modern: { type: Type.STRING },
+    analysis: { type: Type.STRING },
+  },
+  required: ['modern', 'analysis']
+};
+
+const generatePoemFromPaintingGemini = async (base64Image: string): Promise<Poem | null> => {
+  if (!isKeyValid) throw new Error("API_KEY_MISSING");
   const base64Data = base64Image.split(',')[1];
   const contents = { 
     parts: [
       { inlineData: { mimeType: 'image/png', data: base64Data } },
-      { text: `Role: Chinese Poet. Task: Write a poem describing this. ${styleInstruction}. Return JSON.` }
+      { text: `Role: Chinese Poet. Task: Write a poem describing this. Return JSON.` }
     ] 
   };
-  
   const response = await retryWithBackoff(async () => {
     return await ai.models.generateContent({
       model: CREATIVE_MODEL,
       contents: contents,
-      config: { responseMimeType: "application/json", responseSchema: POEM_SCHEMA }
+      config: { responseMimeType: "application/json", responseSchema: POEM_SCHEMA_GEMINI }
     });
   });
-  
   return response.text ? JSON.parse(response.text) : null;
 };
 
-export const translatePoem = async (poem: string, modelId: string): Promise<{ modern: string; analysis: string } | null> => {
+const translatePoemGemini = async (poem: string): Promise<{ modern: string; analysis: string } | null> => {
   if (!isKeyValid) throw new Error("API_KEY_MISSING");
-
-  const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['trans-v1'];
-  const prompt = `Translate to modern Chinese + Analysis. Text: "${poem}". Requirement: ${styleInstruction}. Return JSON.`;
-  
   const response = await retryWithBackoff(async () => {
     return await ai.models.generateContent({
       model: CREATIVE_MODEL,
-      contents: prompt,
-      config: { responseMimeType: "application/json", responseSchema: TRANSLATION_SCHEMA }
+      contents: `Translate to modern Chinese + Analysis: "${poem}". Return JSON.`,
+      config: { responseMimeType: "application/json", responseSchema: TRANS_SCHEMA_GEMINI }
     });
   });
-
   return response.text ? JSON.parse(response.text) : null;
 };
 
-export const generateAncientPoemFromModern = async (modernText: string, modelId: string): Promise<Poem | null> => {
+const generateAncientPoemFromModernGemini = async (text: string): Promise<Poem | null> => {
   if (!isKeyValid) throw new Error("API_KEY_MISSING");
-
-  const styleInstruction = STYLE_PROMPTS[modelId] || STYLE_PROMPTS['rewrite-v1'];
-  const prompt = `Rewrite modern text to classical poem. Text: "${modernText}". Requirement: ${styleInstruction}. Return JSON.`;
-  
   const response = await retryWithBackoff(async () => {
     return await ai.models.generateContent({
       model: CREATIVE_MODEL,
-      contents: prompt,
-      config: { responseMimeType: "application/json", responseSchema: POEM_SCHEMA }
+      contents: `Rewrite to classical poem: "${text}". Return JSON.`,
+      config: { responseMimeType: "application/json", responseSchema: POEM_SCHEMA_GEMINI }
     });
   });
-  
   return response.text ? JSON.parse(response.text) : null;
 };

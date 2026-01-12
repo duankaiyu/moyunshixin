@@ -18,7 +18,6 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const navItems = [
     { id: AppSection.HOME, label: '首页' },
-    { id: AppSection.SEARCH, label: '寻幽探胜' }, // Search
     { id: AppSection.WORKBENCH, label: '墨韵工坊' }, // Workbench
   ];
 

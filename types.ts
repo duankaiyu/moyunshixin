@@ -7,7 +7,6 @@ export enum WorkflowMode {
 
 export enum AppSection {
   HOME = 'HOME',
-  SEARCH = 'SEARCH',
   WORKBENCH = 'WORKBENCH'
 }
 
@@ -23,13 +22,6 @@ export interface Poem {
   content: string[]; // Array of lines
   translation?: string; // Modern vernacular
   explanation?: string; // Brief analysis
-}
-
-export interface SearchFilters {
-  keyword: string;
-  author?: string;
-  dynasty?: string;
-  emotion?: string;
 }
 
 export interface GenerationResult {

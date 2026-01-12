@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Navigation } from './components/Navigation';
-import { SearchSection } from './components/SearchSection';
 import { WorkflowSection } from './components/WorkflowSection';
 import { AuthModal } from './components/AuthModal';
 import { AppSection, User } from './types';
@@ -58,8 +57,6 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (section) {
-      case AppSection.SEARCH:
-        return <SearchSection />;
       case AppSection.WORKBENCH:
         // Pass user ID to WorkflowSection for history tracking
         return user ? <WorkflowSection userId={user.username} /> : null;
@@ -76,18 +73,12 @@ const App: React.FC = () => {
                   AI 赋能传统文化，重塑东方美学意境
                 </p>
                 
-                <div className="flex flex-col md:flex-row gap-6 justify-center mt-12">
+                <div className="flex justify-center mt-12">
                    <button 
                      onClick={() => handleSectionChange(AppSection.WORKBENCH)}
-                     className="px-8 py-4 bg-stone-900 text-[#f7f5f0] text-xl font-serif rounded-sm shadow-lg hover:bg-stone-800 hover:scale-105 transition-all duration-300 border border-stone-700"
+                     className="px-12 py-4 bg-stone-900 text-[#f7f5f0] text-xl font-serif rounded-sm shadow-lg hover:bg-stone-800 hover:scale-105 transition-all duration-300 border border-stone-700"
                    >
                      开始创作
-                   </button>
-                   <button 
-                     onClick={() => handleSectionChange(AppSection.SEARCH)}
-                     className="px-8 py-4 bg-[#f7f5f0]/80 backdrop-blur-sm text-stone-900 text-xl font-serif rounded-sm shadow-lg border border-stone-300 hover:border-stone-500 hover:bg-white transition-all duration-300"
-                   >
-                     寻幽探胜
                    </button>
                 </div>
 

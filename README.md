@@ -5,13 +5,15 @@
 
 在  `.env`  文件中添加个人令牌
 
-<img width="900" height="220" alt="image" src="https://github.com/user-attachments/assets/19c6d449-380b-45f9-9c2e-c0916e617b6f" />
+<img width="800" height="200" alt="image" src="https://github.com/user-attachments/assets/17cb6126-c4ba-4459-94af-ff1eec7baa61" />
+
 
 
 
 在  `services\workflowService.ts`  文件中添加  `WORKFLOW_ID`  和  `APP_ID`
 
-<img width="900" height="600" alt="image" src="https://github.com/user-attachments/assets/3657cffa-581a-4b23-aaf9-2f12bd13befb" />
+<img width="800" height="650" alt="image" src="https://github.com/user-attachments/assets/5155f564-ccb2-457b-82cf-0955b2de0370" />
+
 
 
 

@@ -65,9 +65,9 @@ const App: React.FC = () => {
         return (
           <div className="min-h-screen flex flex-col items-center justify-center pt-16 px-4 relative z-10">
              {/* Hero Section */}
-             <div className="text-center max-w-4xl mx-auto space-y-8 animate-fade-in-up">
-                <h1 className="text-6xl md:text-8xl font-calligraphy text-stone-900 tracking-wider mb-2 drop-shadow-sm">
-                  墨韵诗心
+             <div className="text-center max-w-5xl mx-auto space-y-8 animate-fade-in-up">
+                <h1 className="text-5xl md:text-7xl font-calligraphy text-stone-900 tracking-wider mb-2 drop-shadow-sm leading-tight">
+                  墨韵诗心·<span className="font-serif font-bold italic tracking-normal">AI</span>国风创作平台
                 </h1>
                 <p className="text-xl md:text-2xl text-stone-700 font-serif italic tracking-wide">
                   AI 赋能传统文化，重塑东方美学意境

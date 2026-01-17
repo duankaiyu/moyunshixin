@@ -7,7 +7,8 @@
 
 二.在  `.env`  文件中添加个人令牌
 
-<img width="800" height="200" alt="image" src="https://github.com/user-attachments/assets/17cb6126-c4ba-4459-94af-ff1eec7baa61" />
+<img width="978" height="229" alt="image" src="https://github.com/user-attachments/assets/1171eee1-26c3-4bd9-a137-505db87c801e" />
+
 
 
 
@@ -16,11 +17,14 @@
    
 1.添加  `WORKFLOW_ID`  和  `APP_ID`
 
-<img width="800" height="650" alt="image" src="https://github.com/user-attachments/assets/5155f564-ccb2-457b-82cf-0955b2de0370" />
+<img width="716" height="520" alt="image" src="https://github.com/user-attachments/assets/5efd2298-5202-4162-80c1-713bb772b1d8" />
+
+
 
  2.更改模型名称`name`
 
-<img width="800" height="500" alt="image" src="https://github.com/user-attachments/assets/df4eb5d6-15d6-4281-96b5-c98a5e1f7ea2" />
+<img width="716" height="520" alt="image" src="https://github.com/user-attachments/assets/eecd517e-f60b-4c3e-a8e8-ebbc565bfa74" />
+
 
 
 

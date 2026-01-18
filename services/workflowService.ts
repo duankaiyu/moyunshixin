@@ -91,9 +91,9 @@ const MODEL_OPTIONS: Record<WorkflowMode, ModelOption[]> = {
     { id: 'coze-paint-1-1', name: '墨韵丹青 (1:1 方图)' },
   ],
   [WorkflowMode.PAINTING_TO_POEM]: [
-    { id: 'coze-poem-1', name: '七言绝句 (经典)' }, 
-    { id: 'coze-poem-2', name: '五言律诗 (严谨)' },
-    { id: 'coze-poem-3', name: '宋词长短句 (婉约)' },
+    { id: 'painting_to_prose__', name: '丹青晓言' }, 
+    { id: 'painting_to_prose_1', name: '墨卷解语' },
+    { id: 'painting_to_prose', name: '墨语卷心' },
   ],
   [WorkflowMode.TRANSLATION]: [
     { id: 'coze-trans-1', name: '通俗白话 (易懂)' }, 

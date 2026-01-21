@@ -53,34 +53,34 @@ const POEM_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }
 // 3. 古今翻译配置 (Translation)
 // 对应 API Key: process.env.COZE_API_KEY_TRANS
 const TRANSLATION_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
-  'coze-trans-1': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'coze-trans-DS': {
+    WORKFLOW_ID: '7553544502797123603',
+    APP_ID: '7553481417800712202',
   },
-  'coze-trans-2': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'coze-trans-KIMI': {
+    WORKFLOW_ID: '7553550423253254170',
+    APP_ID: '7553503663458304046',
   },
-  'coze-trans-3': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'coze-trans-DB': {
+    WORKFLOW_ID: '7553548736765689899',
+    APP_ID: '7553498798577401875',
   }
 };
 
 // 4. 白话改写古诗配置 (Rewrite)
 // 对应 API Key: process.env.COZE_API_KEY_TRANS (复用翻译的 Key 或新增)
 const REWRITE_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
-  'coze-rewrite-1': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'coze-rewrite-DS': {
+    WORKFLOW_ID: '7553544502797123603',
+    APP_ID: '7553481417800712202',
   },
-  'coze-rewrite-2': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'coze-rewrite-KIMI': {
+    WORKFLOW_ID: '7553550423253254170',
+    APP_ID: '7553503663458304046',
   },
-  'coze-rewrite-3': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'coze-rewrite-DB': {
+    WORKFLOW_ID: '7553548736765689899',
+    APP_ID: '7553498798577401875',
   }
 };
 
@@ -96,14 +96,14 @@ const MODEL_OPTIONS: Record<WorkflowMode, ModelOption[]> = {
     { id: 'painting_to_prose', name: '墨语卷心' },
   ],
   [WorkflowMode.TRANSLATION]: [
-    { id: 'coze-trans-1', name: '通俗白话 (易懂)' }, 
-    { id: 'coze-trans-2', name: '深度赏析 (学术)' },
-    { id: 'coze-trans-3', name: '英文意译 (国际)' },
+    { id: 'coze-trans-DS', name: '诗映凡言（DeepSeek-V3.1）' },
+    { id: 'coze-trans-KIMI', name: '诗映凡言（KIMI·K2）' },
+    { id: 'coze-trans-DB', name: '诗映凡言（豆包·1.6）' },
   ],
   [WorkflowMode.MODERN_TO_ANCIENT]: [
-    { id: 'coze-rewrite-1', name: '唐诗风格 (豪放)' },
-    { id: 'coze-rewrite-2', name: '宋词风格 (细腻)' },
-    { id: 'coze-rewrite-3', name: '诗经风格 (古朴)' },
+    { id: 'coze-rewrite-DS', name: '语化清辞（DeepSeek-V3.1）' },
+    { id: 'coze-rewrite-KIMI', name: '语化清辞（KIMI·K2）' },
+    { id: 'coze-rewrite-DB', name: '语化清辞（豆包·1.6）' },
   ],
 };
 
@@ -377,8 +377,8 @@ const translatePoemGemini = async (poem: string, modelId: string): Promise<{ mod
   if (!isKeyValid) throw new Error("API_KEY_MISSING");
   
   let instruction = "翻译成通俗易懂的白话文，并进行简要赏析。";
-  if (modelId === 'coze-trans-2') instruction = "进行深度的学术赏析，分析典故、意象与修辞。";
-  if (modelId === 'coze-trans-3') instruction = "Translate into elegant English poetry (put in 'modern' field). Provide English analysis in 'analysis' field.";
+  if (modelId === 'coze-trans-KIMI') instruction = "进行深度的学术赏析，分析典故、意象与修辞。";
+  if (modelId === 'coze-trans-DB') instruction = "Translate into elegant English poetry (put in 'modern' field). Provide English analysis in 'analysis' field.";
 
   const response = await retryWithBackoff(async () => {
     return await ai.models.generateContent({
@@ -394,8 +394,8 @@ const generateAncientPoemFromModernGemini = async (text: string, modelId: string
   if (!isKeyValid) throw new Error("API_KEY_MISSING");
 
   let instruction = "风格：唐诗（豪放）。";
-  if (modelId === 'coze-rewrite-2') instruction = "风格：宋词（婉约细腻）。";
-  if (modelId === 'coze-rewrite-3') instruction = "风格：诗经（四言古朴）。";
+  if (modelId === 'coze-rewrite-KIMI') instruction = "风格：宋词（婉约细腻）。";
+  if (modelId === 'coze-rewrite-DS') instruction = "风格：诗经（四言古朴）。";
 
   const response = await retryWithBackoff(async () => {
     return await ai.models.generateContent({

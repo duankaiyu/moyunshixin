@@ -36,17 +36,17 @@ const PAINTING_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: stri
 // 请在此处填入 3 个不同的工作流 ID
 // 对应 API Key: process.env.COZE_API_KEY_POEM
 const POEM_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
-  'coze-poem-1': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'painting_to_prose__': {
+    WORKFLOW_ID: '7559032378917126144', 
+    APP_ID: '7558880828160639014',
   },
-  'coze-poem-2': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'painting_to_prose_1': {
+    WORKFLOW_ID: '7558533197300351027', 
+    APP_ID: 7558418710018031651',
   },
-  'coze-poem-3': {
-    WORKFLOW_ID: 'REPLACE_WITH_ID', 
-    APP_ID: 'REPLACE_WITH_ID',
+  'painting_to_prose': {
+    WORKFLOW_ID: '7553617651843629102', 
+    APP_ID: '7553575067091861542',
   }
 };
 

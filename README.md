@@ -17,7 +17,8 @@
    
 1.添加  `WORKFLOW_ID`  和  `APP_ID`
 
-<img width="716" height="520" alt="image" src="https://github.com/user-attachments/assets/5efd2298-5202-4162-80c1-713bb772b1d8" />
+<img width="1001" height="860" alt="image" src="https://github.com/user-attachments/assets/26c7bf3d-9811-44de-8877-309f02f2e48e" />
+
 
 
 

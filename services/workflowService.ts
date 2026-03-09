@@ -42,7 +42,7 @@ const POEM_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }
   },
   'painting_to_prose_1': {
     WORKFLOW_ID: '7558533197300351027', 
-    APP_ID: 7558418710018031651',
+    APP_ID: '7558418710018031651',
   },
   'painting_to_prose': {
     WORKFLOW_ID: '7553617651843629102', 

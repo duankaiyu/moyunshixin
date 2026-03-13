@@ -87,7 +87,7 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
           if (typeof recoveredUrl === 'string' && recoveredUrl.startsWith('http')) {
              setResult(recoveredUrl);
              historyService.saveItem(userId, activeMode, inputText, recoveredUrl);
-             loadHistory(); // Reload history on recovery
+             loadHistory(); 
              setLoading(false);
              return; 
           }
@@ -105,7 +105,6 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
     setActiveMode(item.mode);
     setResult(item.result);
     
-    // Restore inputs based on mode
     if (item.mode === WorkflowMode.PAINTING_TO_POEM) {
       setPreviewImage(item.input);
       setInputText('');
@@ -114,7 +113,6 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
       setPreviewImage(null);
     }
     
-    // Scroll to top to see result
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showNotification("已恢复该历史记录");
   };
@@ -122,7 +120,7 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
   const getModeLabel = (mode: WorkflowMode) => {
     switch(mode) {
       case WorkflowMode.POEM_TO_PAINTING: return "诗 ➔ 画";
-      case WorkflowMode.PAINTING_TO_POEM: return "画 ➔ 白";
+      case WorkflowMode.PAINTING_TO_POEM: return "画 ➔ 诗";
       case WorkflowMode.TRANSLATION: return "古 ➔ 白";
       case WorkflowMode.MODERN_TO_ANCIENT: return "白 ➔ 古";
       default: return mode;
@@ -139,10 +137,9 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
 
       <div className="flex flex-col xl:flex-row gap-8 items-start">
         
-        {/* ================= LEFT COLUMN: WORKSHOP (75%) ================= */}
+        {/* ================= LEFT COLUMN: WORKSHOP ================= */}
         <div className="w-full xl:w-3/4 flex flex-col">
           
-          {/* Header */}
           <div className="flex flex-col items-center mb-8">
             <div className="text-center bg-[#f7f5f0]/85 backdrop-blur-md p-6 rounded-lg w-full border border-stone-300 shadow-md relative">
               <h2 className="text-4xl font-calligraphy text-stone-900 mb-2">墨韵工坊</h2>
@@ -154,7 +151,6 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
             </div>
           </div>
 
-          {/* Mode Selector Tabs */}
           <div className="flex flex-wrap justify-center mb-8 border-b border-stone-400/50 bg-[#f7f5f0]/40 rounded-t-lg backdrop-blur-sm">
             {Object.values(WorkflowMode).map(mode => (
               <button
@@ -163,14 +159,13 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
                 className={`px-6 py-3 font-serif text-lg transition-all ${activeMode === mode ? 'text-red-900 border-b-4 border-red-900 bg-red-50/60 font-bold' : 'text-stone-800 hover:bg-stone-200/40'}`}
               >
                 {mode === WorkflowMode.POEM_TO_PAINTING && '诗词 ➔ 国画'}
-                {mode === WorkflowMode.PAINTING_TO_POEM && '国画 ➔ 赏析'}
+                {mode === WorkflowMode.PAINTING_TO_POEM && '国画 ➔ 诗词'}
                 {mode === WorkflowMode.TRANSLATION && '古诗 ➔ 白话'}
                 {mode === WorkflowMode.MODERN_TO_ANCIENT && '白话 ➔ 古诗'}
               </button>
             ))}
           </div>
 
-          {/* Workspace Area: Input & Output */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start mb-12">
             
             {/* Input Panel */}
@@ -196,7 +191,34 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
                      const file = e.target.files?.[0];
                      if(file) {
                        const reader = new FileReader();
-                       reader.onloadend = () => setPreviewImage(reader.result as string);
+                       reader.onloadend = () => {
+                         // 💡 核心修复：前端画布自动压缩技术
+                         const img = new Image();
+                         img.onload = () => {
+                           const canvas = document.createElement('canvas');
+                           const MAX_SIZE = 800; // 限制最大边长，足以让大模型看清细节
+                           let width = img.width;
+                           let height = img.height;
+
+                           if (width > height && width > MAX_SIZE) {
+                             height *= MAX_SIZE / width;
+                             width = MAX_SIZE;
+                           } else if (height > MAX_SIZE) {
+                             width *= MAX_SIZE / height;
+                             height = MAX_SIZE;
+                           }
+
+                           canvas.width = width;
+                           canvas.height = height;
+                           const ctx = canvas.getContext('2d');
+                           ctx?.drawImage(img, 0, 0, width, height);
+                           
+                           // 转换为 80% 画质的 JPEG 格式，极大减小体积
+                           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                           setPreviewImage(compressedBase64);
+                         };
+                         img.src = reader.result as string;
+                       };
                        reader.readAsDataURL(file);
                      }
                    }} />
@@ -242,7 +264,7 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
           </div>
         </div>
 
-        {/* ================= RIGHT COLUMN: HISTORY SIDEBAR (25%) ================= */}
+        {/* ================= RIGHT COLUMN: HISTORY SIDEBAR ================= */}
         <div className="w-full xl:w-1/4 flex flex-col gap-6 sticky top-24">
           <div className="flex items-center">
             <div className="flex-1 h-px bg-stone-300"></div>

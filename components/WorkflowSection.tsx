@@ -159,7 +159,7 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
                 className={`px-6 py-3 font-serif text-lg transition-all ${activeMode === mode ? 'text-red-900 border-b-4 border-red-900 bg-red-50/60 font-bold' : 'text-stone-800 hover:bg-stone-200/40'}`}
               >
                 {mode === WorkflowMode.POEM_TO_PAINTING && '诗词 ➔ 国画'}
-                {mode === WorkflowMode.PAINTING_TO_POEM && '国画 ➔ 诗词'}
+                {mode === WorkflowMode.PAINTING_TO_POEM && '国画 ➔ 赏析'}
                 {mode === WorkflowMode.TRANSLATION && '古诗 ➔ 白话'}
                 {mode === WorkflowMode.MODERN_TO_ANCIENT && '白话 ➔ 古诗'}
               </button>

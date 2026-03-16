@@ -249,6 +249,8 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
                <div className="flex-1 flex items-center justify-center">
                   {!result && !loading && <div className="text-stone-400 font-serif">静候佳作...</div>}
                   {loading && <div className="animate-pulse font-serif text-stone-500">墨香酝酿中...</div>}
+                  
+                  {/* 1. 渲染：诗生画 */}
                   {activeMode === WorkflowMode.POEM_TO_PAINTING && result && typeof result === 'string' && (
                     <div className="flex flex-col items-center w-full">
                       <img src={result} className="max-w-full max-h-[500px] object-contain rounded shadow-md border-4 border-[#f0f0f0]" alt="AI Generated" />
@@ -257,7 +259,36 @@ export const WorkflowSection: React.FC<WorkflowSectionProps> = ({ userId }) => {
                       </button>
                     </div>
                   )}
-                  {result && activeMode !== WorkflowMode.POEM_TO_PAINTING && <PoemCard poem={result} />}
+
+                  {/* 2. 渲染：古今互译 (展示白话文) */}
+                  {result && activeMode === WorkflowMode.TRANSLATION && (
+                    <div className="w-full bg-[#fffdf9] border border-stone-200 shadow-lg p-8 rounded-sm flex flex-col h-full relative group">
+                      <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-stone-300 opacity-50 rounded-tr-lg" />
+                      <div className="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 border-stone-300 opacity-50 rounded-bl-lg" />
+                      
+                      <h3 className="text-2xl font-serif text-stone-900 mb-6 text-center font-bold relative z-10">白话译文</h3>
+                      
+                      <div className="flex-grow flex flex-col justify-center relative z-10">
+                        <p className="text-lg text-stone-800 font-serif leading-loose whitespace-pre-wrap text-center">
+                          {result.modern}
+                        </p>
+                      </div>
+
+                      {result.analysis && (
+                        <div className="mt-8 pt-6 border-t border-stone-100 relative z-10">
+                          <h4 className="text-[15px] font-serif font-bold text-stone-500 mb-2 text-center">— 深度赏析 —</h4>
+                          <p className="text-stone-600 font-serif leading-relaxed text-sm text-justify">
+                            {result.analysis}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. 渲染：图生诗、白话转古诗 (展示 PoemCard) */}
+                  {result && (activeMode === WorkflowMode.PAINTING_TO_POEM || activeMode === WorkflowMode.MODERN_TO_ANCIENT) && (
+                    <PoemCard poem={result} />
+                  )}
                </div>
             </div>
 

@@ -37,6 +37,7 @@ const POEM_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }
 };
 
 // 3. 古今翻译配置 (Translation)
+// ⚠️ 注意：请确保这里的 WORKFLOW_ID 是你刚刚发布的文生文工作流的真实 ID！
 const TRANSLATION_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
   'coze-trans-DS': {
     WORKFLOW_ID: '7553544502797123603',
@@ -53,6 +54,7 @@ const TRANSLATION_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: s
 };
 
 // 4. 白话改写古诗配置 (Rewrite)
+// ⚠️ 注意：请确保这里的 WORKFLOW_ID 也是你刚刚发布的真实 ID！
 const REWRITE_MODELS_CONFIG: Record<string, { WORKFLOW_ID: string; APP_ID: string }> = {
   'coze-rewrite-DS': {
     WORKFLOW_ID: '7553544502797123603',
@@ -108,12 +110,22 @@ const runCozeWorkflow = async (
       body: JSON.stringify({ workflow_id: config.WORKFLOW_ID, parameters: parameters })
     });
 
+    // 💡 修复点 1：安全解析错误信息，杜绝 JSON.parse 崩溃
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
-      const errJson = await response.json();
-      throw new Error(`Coze API 拒绝执行: ${JSON.stringify(errJson)}`);
+      const errText = await response.text();
+      let errMsg = errText;
+      try {
+         const errJson = JSON.parse(errText);
+         errMsg = errJson.msg || errJson.error_msg || JSON.stringify(errJson);
+      } catch(e) {}
+      throw new Error(`Coze API 拒绝执行: ${errMsg}`);
     }
-    if (!response.ok) throw new Error(`网络或鉴权错误 (${response.status})`);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`网络或鉴权错误 (${response.status}): ${errText}`);
+    }
 
     const reader = response.body!.getReader();
     const decoder = new TextDecoder('utf-8');
@@ -141,8 +153,10 @@ const runCozeWorkflow = async (
             if (!dataStr || dataStr === '[DONE]') continue;
             const dataJson = JSON.parse(dataStr);
             
-            if (currentEvent === 'Error' || (dataJson.code !== undefined && dataJson.code !== 0)) {
-               throw new Error(`工作流执行错误: ${dataJson.msg || dataJson.error_msg}`);
+            // 提取工作流内部报错
+            if (currentEvent === 'Error' || (dataJson.code !== undefined && dataJson.code !== 0) || dataJson.error_code) {
+               const errMsg = dataJson.error_message || dataJson.error_msg || dataJson.msg || JSON.stringify(dataJson);
+               throw new Error(`工作流执行异常: ${errMsg}`);
             }
 
             if (currentEvent === 'Message' && dataJson.content && typeof dataJson.content === 'string') {
@@ -156,15 +170,16 @@ const runCozeWorkflow = async (
                } catch(e) {}
             }
           } catch (e) {
-             if (e instanceof Error && e.message.includes('工作流执行错误')) throw e;
+             // 💡 修复点 2：只向上抛出我们自定义的真实错误，静默忽略底层杂音数据
+             if (e instanceof Error && e.message.includes('工作流执行异常')) throw e;
           }
         }
       }
     }
     return fullTextOutput || "";
   } catch (error: any) {
-    if (error.name === 'TypeError') throw new Error("网络请求失败，请检查连通性。");
-    throw error;
+    if (error.name === 'TypeError' && error.message === 'Failed to fetch') throw new Error("网络请求失败，请检查连通性。");
+    throw error; // 将真实的中文错误抛出
   }
 };
 
@@ -183,10 +198,6 @@ const extractUrlFromText = (text: string): string | null => {
   return null;
 };
 
-/**
- * 💡 终极修复：智能容错 JSON 解析器
- * 如果大模型发神经给了一大段散文，它会自动将其打包成合法的对象格式！不会再崩溃！
- */
 const parseCozeJson = <T>(text: string, isPoem: boolean = true): T => {
   if (!text || text.trim() === '') throw new Error("工作流未返回任何内容。");
 
@@ -203,25 +214,22 @@ const parseCozeJson = <T>(text: string, isPoem: boolean = true): T => {
     
     if (firstBrace !== -1 && lastBrace !== -1) {
       const parsed = JSON.parse(cleanText.substring(firstBrace, lastBrace + 1));
-      // 只有解析出我们需要的字段，才认为它是合法的 JSON
       if (parsed.content || parsed.modern || parsed.title) {
         return parsed as T;
       }
     }
     throw new Error("No valid fields found");
   } catch (e) {
-    // 🛡️ 智能容错兜底：把大模型写的散文自动拼成诗词/翻译卡片所需的数据结构
     console.warn("大模型输出了纯文本，已启动智能排版包装。原文:", text);
-    
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
     if (isPoem) {
       return {
-        title: "画意赏析",
+        title: "文思泉涌",
         author: "墨韵智作",
         dynasty: "当世",
-        content: lines, // 将长文分段显示在内容区
-        explanation: "注：大模型按散文格式输出了深度赏析，已为您自动排版。"
+        content: lines, 
+        explanation: "注：大模型按散文格式输出了内容，已为您自动排版。"
       } as unknown as T;
     } else {
       return {
@@ -284,33 +292,47 @@ export const generatePoemFromPainting = async (base64Image: string, modelId: str
   const fileId = await uploadImageToCoze(base64Image, apiKey);
   console.log("2. 运行题诗工作流...");
 
-  // 我们已经确认格式 A 是能跑通 API 的，现在只管解析容错即可
   try {
     const rawOutput = await runCozeWorkflow(
       { ...config, API_KEY: apiKey }, 
       { input: JSON.stringify({ file_id: String(fileId) }) } 
     );
-    // 💡 传入 true，表示这是诗词生成，交给智能容错器处理
     return parseCozeJson<Poem>(rawOutput, true);
   } catch (apiError: any) {
-    // 只有在 API 真挂了（比如网络断了）才会走到这，此时抛出报错
     throw new Error(`请求大模型失败: ${apiError.message}`);
   }
 };
 
+// 💡 互译工作流：修复参数名，对接 Coze 真实输入字段
 export const translatePoem = async (poem: string, modelId: string): Promise<{ modern: string; analysis: string } | null> => {
   const config = TRANSLATION_MODELS_CONFIG[modelId];
   if (!config) throw new Error(`未找到模型配置`);
+  
+  // 1. 动态获取当前下拉框选中的模型名称（即 task_type）
+  const modelName = MODEL_OPTIONS[WorkflowMode.TRANSLATION].find(m => m.id === modelId)?.name || '';
 
-  const rawOutput = await runCozeWorkflow({ ...config, API_KEY: process.env.COZE_API_KEY_TRANS }, { input: poem });
-  // 💡 传入 false，告诉容错器这是翻译模式
+  // 2. 将入参字段改为 input_text，并补上 task_type 字段
+  const rawOutput = await runCozeWorkflow(
+    { ...config, API_KEY: process.env.COZE_API_KEY_TRANS }, 
+    { input_text: poem, task_type: modelName }
+  );
+  
   return parseCozeJson<{ modern: string; analysis: string }>(rawOutput, false);
 };
 
+// 💡 白话转古诗：修复参数名，对接 Coze 真实输入字段
 export const generateAncientPoemFromModern = async (modernText: string, modelId: string): Promise<Poem | null> => {
   const config = REWRITE_MODELS_CONFIG[modelId];
   if (!config) throw new Error(`未找到模型配置`);
 
-  const rawOutput = await runCozeWorkflow({ ...config, API_KEY: process.env.COZE_API_KEY_TRANS }, { input: modernText });
+  // 1. 动态获取当前下拉框选中的模型名称（即 task_type）
+  const modelName = MODEL_OPTIONS[WorkflowMode.MODERN_TO_ANCIENT].find(m => m.id === modelId)?.name || '';
+
+  // 2. 将入参字段改为 input_text，并补上 task_type 字段
+  const rawOutput = await runCozeWorkflow(
+    { ...config, API_KEY: process.env.COZE_API_KEY_TRANS }, 
+    { input_text: modernText, task_type: modelName }
+  );
+  
   return parseCozeJson<Poem>(rawOutput, true);
 };
